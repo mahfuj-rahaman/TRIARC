@@ -12,11 +12,11 @@ later phases beyond stub interfaces.
 
 ## Phase 1 — Route + execute (core loop)  ⟵ THE PRODUCT
 **Deliverable:** a real goal produces working code.
-- [ ] Router/planner loop: goal → plan → per-step capability emission
-- [ ] Registry resolution (Tier 1 → 2 → 3) with the routing algorithm
-- [ ] `orchestrator/servers/code-sandbox/` — containerized execution
-- [ ] `git` + `filesystem` MCP servers (workspace-scoped)
-- [ ] Test-run-read-fix loop
+- [x] Router/planner loop: goal → plan → per-step capability emission
+- [x] Registry resolution (Tier 1 → 2 → 3) with the routing algorithm
+- [x] `orchestrator/servers/code_sandbox/` — containerized execution
+- [x] `git` + `filesystem` MCP servers (workspace-scoped)
+- [x] Test-run-read-fix loop
 
 ## Phase 2 — Escalation + gates
 **Deliverable:** fail-upward works; irreversible actions are gated.

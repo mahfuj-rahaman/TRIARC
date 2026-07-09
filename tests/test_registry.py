@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from orchestrator.registry import ModelRegistry
-from orchestrator.schema import Capability, Privacy
+from orchestrator.registry import ModelEndpoint, ModelRegistry, NoCapableEndpointError
+from orchestrator.schema import Capability, Constraints, Privacy
 
 CONFIG_PATH = Path(__file__).resolve().parent.parent / "configs" / "models.yaml"
 
@@ -36,3 +36,60 @@ def test_unknown_model_id_raises():
 
     with pytest.raises(KeyError):
         registry.get("does-not-exist")
+
+
+def test_resolve_picks_cheapest_direct_match():
+    registry = ModelRegistry.load(CONFIG_PATH)
+
+    endpoint = registry.resolve(Capability.CODE_COMPLEX, Constraints(privacy=Privacy.CLOUD_OK))
+
+    assert endpoint.id == "gemma-coder"
+
+
+def test_resolve_local_constraint_excludes_cloud_endpoints():
+    registry = ModelRegistry.load(CONFIG_PATH)
+
+    endpoint = registry.resolve(Capability.ROUTE, Constraints(privacy=Privacy.LOCAL))
+
+    assert endpoint.id == "local-router"
+
+
+def test_resolve_raises_when_local_constraint_has_no_capable_endpoint():
+    registry = ModelRegistry.load(CONFIG_PATH)
+
+    with pytest.raises(NoCapableEndpointError):
+        registry.resolve(Capability.DEBUG, Constraints(privacy=Privacy.LOCAL))
+
+
+def test_resolve_respects_max_cost():
+    registry = ModelRegistry.load(CONFIG_PATH)
+
+    with pytest.raises(NoCapableEndpointError):
+        registry.resolve(
+            Capability.DEBUG, Constraints(privacy=Privacy.CLOUD_OK, max_cost=1.0)
+        )
+
+
+def test_resolve_escalates_when_exact_capability_unavailable():
+    registry = ModelRegistry(
+        models=[
+            ModelEndpoint(
+                id="complex-only",
+                endpoint="http://example.test",
+                capabilities=[Capability.CODE_COMPLEX],
+                cost=0.5,
+                privacy=Privacy.CLOUD_OK,
+            )
+        ]
+    )
+
+    endpoint = registry.resolve(Capability.TOOL_USE, Constraints(privacy=Privacy.CLOUD_OK))
+
+    assert endpoint.id == "complex-only"
+
+
+def test_resolve_raises_when_no_endpoint_at_any_rung():
+    registry = ModelRegistry(models=[])
+
+    with pytest.raises(NoCapableEndpointError):
+        registry.resolve(Capability.ROUTE, Constraints())

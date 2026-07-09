@@ -12,7 +12,7 @@ import json
 
 from openai import OpenAI
 
-from orchestrator.schema import Task
+from orchestrator.schema import Plan, Task
 
 _SYSTEM_PROMPT = (
     "You are the TRIARC orchestrator's routing step. You do not solve the user's "
@@ -22,6 +22,19 @@ _SYSTEM_PROMPT = (
     "or cloud knowledge, and set confidence to your own 0-1 confidence in that "
     "classification. Leave result and escalation_reason null -- routing does not "
     "execute the task."
+)
+
+_PLAN_SYSTEM_PROMPT = (
+    "You are the TRIARC orchestrator's planning step. Decompose the user's goal into "
+    "an ordered list of sub-tasks needed to accomplish it -- do not solve any of them "
+    "yourself. For each step, write a concise sub-goal describing exactly one unit of "
+    "work, choose the single capability_required it needs (route, extract, "
+    "code_simple, code_complex, tool_use, research, synthesis, or debug), set "
+    "constraints.privacy to 'local' unless the step clearly requires external or "
+    "cloud knowledge, and set confidence to your own 0-1 confidence in that step's "
+    "classification. Leave result and escalation_reason null on every step -- "
+    "planning does not execute tasks. Order steps so each one only depends on steps "
+    "before it."
 )
 
 
@@ -52,3 +65,24 @@ class Tier1Client:
         data = json.loads(content)
         data["goal"] = goal
         return Task.model_validate(data)
+
+    def plan(self, goal: str) -> Plan:
+        response = self._client.chat.completions.create(
+            model=self._model,
+            messages=[
+                {"role": "system", "content": _PLAN_SYSTEM_PROMPT},
+                {"role": "user", "content": goal},
+            ],
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "plan",
+                    "schema": Plan.model_json_schema(),
+                    "strict": True,
+                },
+            },
+        )
+        content = response.choices[0].message.content
+        data = json.loads(content)
+        data["goal"] = goal
+        return Plan.model_validate(data)

@@ -38,3 +38,10 @@ class Task(BaseModel):
     result: str | None = None
     confidence: float = 0.0
     escalation_reason: str | None = None
+
+
+class Plan(BaseModel):
+    """An ordered decomposition of a goal into sub-tasks (architecture.md #4)."""
+
+    goal: str
+    steps: list[Task] = Field(default_factory=list)
