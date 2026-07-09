@@ -34,3 +34,7 @@ def write_file(workspace: Path, path: str, content: str) -> None:
 def list_dir(workspace: Path, path: str = ".") -> list[str]:
     target = _resolve(workspace, path)
     return sorted(entry.name for entry in target.iterdir())
+
+
+def delete_file(workspace: Path, path: str) -> None:
+    _resolve(workspace, path).unlink()

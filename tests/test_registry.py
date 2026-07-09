@@ -2,7 +2,12 @@ from pathlib import Path
 
 import pytest
 
-from orchestrator.registry import ModelEndpoint, ModelRegistry, NoCapableEndpointError
+from orchestrator.registry import (
+    ModelEndpoint,
+    ModelRegistry,
+    NoCapableEndpointError,
+    escalate_capability,
+)
 from orchestrator.schema import Capability, Constraints, Privacy
 
 CONFIG_PATH = Path(__file__).resolve().parent.parent / "configs" / "models.yaml"
@@ -93,3 +98,13 @@ def test_resolve_raises_when_no_endpoint_at_any_rung():
 
     with pytest.raises(NoCapableEndpointError):
         registry.resolve(Capability.ROUTE, Constraints())
+
+
+def test_escalate_capability_moves_up_one_rung():
+    assert escalate_capability(Capability.CODE_SIMPLE) == Capability.TOOL_USE
+    assert escalate_capability(Capability.DEBUG) == Capability.SYNTHESIS
+
+
+def test_escalate_capability_raises_at_the_top_of_the_ladder():
+    with pytest.raises(NoCapableEndpointError):
+        escalate_capability(Capability.RESEARCH)

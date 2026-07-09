@@ -87,6 +87,22 @@ class ModelRegistry(BaseModel):
         )
 
 
+def escalate_capability(capability: Capability) -> Capability:
+    """Move CAPABILITY one rung up the escalation ladder (docs/routing.md).
+
+    Used for reactive (fail-upward) escalation: a step whose result carries low
+    confidence or an escalation_reason re-resolves at the next rung, even though the
+    current endpoint already satisfied the original capability.
+    """
+    rung = _ESCALATION_LADDER.index(capability)
+    if rung + 1 >= len(_ESCALATION_LADDER):
+        raise NoCapableEndpointError(
+            f"capability_required={capability.value!r} is already at the top of the "
+            "escalation ladder"
+        )
+    return _ESCALATION_LADDER[rung + 1]
+
+
 def _privacy_satisfied(endpoint_privacy: Privacy, task_privacy: Privacy) -> bool:
     if task_privacy == Privacy.LOCAL:
         return endpoint_privacy == Privacy.LOCAL

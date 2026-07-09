@@ -54,11 +54,16 @@ def run(goal: str, execute: bool) -> None:
 
     workspace = os.environ.get("TRIARC_WORKSPACE", _DEFAULT_WORKSPACE)
     sandbox = ContainerRuntime(workspace)
-    outcomes = run_plan(routed_steps, sandbox)
+    outcomes = run_plan(routed_steps, registry, sandbox)
     click.echo(
         json.dumps(
             [
-                {"task_id": outcome.task_id, "attempts": outcome.attempts, "passed": outcome.passed}
+                {
+                    "task_id": outcome.task_id,
+                    "attempts": outcome.attempts,
+                    "passed": outcome.passed,
+                    "escalations": outcome.escalations,
+                }
                 for outcome in outcomes
             ],
             indent=2,

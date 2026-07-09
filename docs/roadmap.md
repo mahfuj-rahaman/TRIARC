@@ -20,10 +20,10 @@ later phases beyond stub interfaces.
 
 ## Phase 2 — Escalation + gates
 **Deliverable:** fail-upward works; irreversible actions are gated.
-- [ ] `confidence` + `escalation_reason` handling; reactive escalation ladder
-- [ ] Egress gatekeeper (secret/PII redaction before Tier 3)
-- [ ] Untrusted-ingress tagging for tool/web content
-- [ ] Confirmation-gate framework
+- [x] `confidence` + `escalation_reason` handling; reactive escalation ladder
+- [x] Egress gatekeeper (secret/PII redaction before Tier 3)
+- [x] Untrusted-ingress tagging for tool/web content
+- [x] Confirmation-gate framework
 
 ## Phase 3 — Telemetry + cost demo  ⟵ THE MONEY-SHOT
 **Deliverable:** the run summary that wins Track 3.
