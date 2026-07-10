@@ -16,7 +16,7 @@ from pydantic import BaseModel
 
 from orchestrator.schema import Capability, Constraints, Privacy
 
-_ENV_VAR = re.compile(r"\$\{([A-Z0-9_]+)\}")
+_ENV_VAR = re.compile(r"\$\{([A-Z0-9_]+)(?::-(.*?))?\}")
 
 # Escalation ladder (docs/routing.md "Capabilities" table, ascending tier). Resolution
 # starts at the requested capability and, if no endpoint satisfies it, retries at each
@@ -111,10 +111,12 @@ def _privacy_satisfied(endpoint_privacy: Privacy, task_privacy: Privacy) -> bool
 
 
 def _lookup_env(match: re.Match[str]) -> str:
-    name = match.group(1)
+    name, default = match.group(1), match.group(2)
     try:
         return os.environ[name]
     except KeyError as exc:
+        if default is not None:
+            return default
         raise KeyError(
             f"configs/models.yaml references ${{{name}}}, "
             "but it is not set in the environment"

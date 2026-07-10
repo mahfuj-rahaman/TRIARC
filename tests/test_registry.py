@@ -32,6 +32,20 @@ def test_loads_configs_models_yaml():
     assert registry.get("frontier").tier == 3
 
 
+def test_local_model_defaults_when_env_var_unset():
+    registry = ModelRegistry.load(CONFIG_PATH)
+
+    assert registry.get("local-router").model == "tier1-router"
+
+
+def test_local_model_env_var_overrides_default(monkeypatch):
+    monkeypatch.setenv("LOCAL_MODEL", "glm-4.7-flash:latest")
+
+    registry = ModelRegistry.load(CONFIG_PATH)
+
+    assert registry.get("local-router").model == "glm-4.7-flash:latest"
+
+
 def test_missing_env_var_raises(monkeypatch):
     monkeypatch.delenv("LOCAL_ENDPOINT", raising=False)
 
@@ -111,3 +125,39 @@ def test_escalate_capability_moves_up_one_rung():
 def test_escalate_capability_raises_at_the_top_of_the_ladder():
     with pytest.raises(NoCapableEndpointError):
         escalate_capability(Capability.RESEARCH)
+
+
+def test_env_var_with_default_falls_back_when_unset(tmp_path, monkeypatch):
+    monkeypatch.delenv("SOME_UNSET_VAR", raising=False)
+    config = tmp_path / "models.yaml"
+    config.write_text(
+        "models:\n"
+        "  - id: x\n"
+        "    endpoint: http://x\n"
+        "    model: ${SOME_UNSET_VAR:-fallback-model}\n"
+        "    capabilities: [route]\n"
+        "    cost: 0\n"
+        "    privacy: local\n"
+    )
+
+    registry = ModelRegistry.load(config)
+
+    assert registry.get("x").model == "fallback-model"
+
+
+def test_env_var_with_default_prefers_set_value(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOME_VAR", "explicit-model")
+    config = tmp_path / "models.yaml"
+    config.write_text(
+        "models:\n"
+        "  - id: x\n"
+        "    endpoint: http://x\n"
+        "    model: ${SOME_VAR:-fallback-model}\n"
+        "    capabilities: [route]\n"
+        "    cost: 0\n"
+        "    privacy: local\n"
+    )
+
+    registry = ModelRegistry.load(config)
+
+    assert registry.get("x").model == "explicit-model"

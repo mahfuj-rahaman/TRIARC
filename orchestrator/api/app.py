@@ -100,8 +100,8 @@ def _to_gate_out(gate: ConfirmationGate) -> GateOut:
 def _default_manager() -> RunManager:
     config_path = os.environ.get("MODELS_CONFIG", _DEFAULT_MODELS_CONFIG)
     registry = ModelRegistry.load(config_path)
-    tier1_endpoint = registry.get(_TIER1_MODEL_ID).endpoint
-    tier1 = Tier1Client(endpoint=tier1_endpoint)
+    tier1_endpoint = registry.get(_TIER1_MODEL_ID)
+    tier1 = Tier1Client(endpoint=tier1_endpoint.endpoint, model=tier1_endpoint.model or "tier1-router")
     workspace = os.environ.get("TRIARC_WORKSPACE", _DEFAULT_WORKSPACE)
     return RunManager(registry, tier1, workspace)
 

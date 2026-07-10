@@ -5,6 +5,7 @@
 models:
   - id: local-router
     endpoint: ${LOCAL_ENDPOINT}
+    model: ${LOCAL_MODEL:-tier1-router}
     capabilities: [route, extract, code_simple]
     cost: 0
     privacy: local

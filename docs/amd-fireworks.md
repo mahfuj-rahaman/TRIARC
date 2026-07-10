@@ -15,6 +15,13 @@ Project prize).
 - Handles routing, classification, extraction, and simple edits — the bulk of steps —
   at **zero marginal cost**. This is the source of the cost win.
 - Registered in `configs/models.yaml` as the `local-*` endpoints with `privacy: local`.
+- `LOCAL_ENDPOINT`/`LOCAL_MODEL` are the only two knobs -- any OpenAI-compatible server
+  works the same way the AMD pod does. **Ollama** (`http://localhost:11434/v1`) is a
+  tested example for local dev: set `LOCAL_MODEL` to a model you've pulled
+  (`ollama list`). It must support `response_format: json_schema` in strict mode, since
+  the orchestrator never accepts free-text for routing decisions (architecture.md #4)
+  -- confirmed working against `glm-4.7-flash` for both the single-task and full-plan
+  schemas.
 
 ## Tiers 2–3 — Fireworks AI
 

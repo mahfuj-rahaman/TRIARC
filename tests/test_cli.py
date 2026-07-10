@@ -9,8 +9,9 @@ from orchestrator.worker_client import ExecutionResult
 
 
 class _FakeTier1Client:
-    def __init__(self, endpoint: str) -> None:
+    def __init__(self, endpoint: str, model: str = "tier1-router") -> None:
         self.endpoint = endpoint
+        self.model = model
 
     def plan(self, goal: str) -> Plan:
         return Plan(

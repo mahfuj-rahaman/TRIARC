@@ -39,7 +39,7 @@ def run(goal: str, execute: bool) -> None:
     registry = ModelRegistry.load(config_path)
     tier1 = registry.get(_TIER1_MODEL_ID)
 
-    client = Tier1Client(endpoint=tier1.endpoint)
+    client = Tier1Client(endpoint=tier1.endpoint, model=tier1.model or "tier1-router")
     routed_steps = route_plan(goal, client, registry)
     click.echo(
         json.dumps(
