@@ -19,7 +19,7 @@ def _cloud_client() -> WorkerClient:
 
 def test_execute_returns_task_with_worker_result(monkeypatch):
     content = json.dumps({"result": "print('hello')", "confidence": 0.9})
-    fake = install_fake_openai(monkeypatch, "orchestrator.worker_client", content)
+    fake = install_fake_openai(monkeypatch, "orchestrator.worker_client", content, total_tokens=123)
 
     client = _cloud_client()
     task = Task(
@@ -29,12 +29,13 @@ def test_execute_returns_task_with_worker_result(monkeypatch):
         constraints=Constraints(privacy=Privacy.CLOUD_OK),
     )
 
-    produced = client.execute(task)
+    result = client.execute(task)
 
-    assert produced.task_id == task.task_id
-    assert produced.context_refs == ["hello.py"]
-    assert produced.result == "print('hello')"
-    assert produced.confidence == 0.9
+    assert result.task.task_id == task.task_id
+    assert result.task.context_refs == ["hello.py"]
+    assert result.task.result == "print('hello')"
+    assert result.task.confidence == 0.9
+    assert result.total_tokens == 123
     messages = fake.chat.completions.last_kwargs["messages"]
     assert messages[-1]["content"] == "write hello world script"
 

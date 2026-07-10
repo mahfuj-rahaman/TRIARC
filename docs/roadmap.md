@@ -27,9 +27,9 @@ later phases beyond stub interfaces.
 
 ## Phase 3 — Telemetry + cost demo  ⟵ THE MONEY-SHOT
 **Deliverable:** the run summary that wins Track 3.
-- [ ] Per-step logging: tier, endpoint, tokens, cost, confidence, escalated
-- [ ] Run summary: actual vs all-frontier-baseline cost + savings
-- [ ] A simple visual (terminal table or small web view) for the demo video
+- [x] Per-step logging: tier, endpoint, tokens, cost, confidence, escalated
+- [x] Run summary: actual vs all-frontier-baseline cost + savings
+- [x] A simple visual (terminal table or small web view) for the demo video
 
 ## Phase 4 — Management UI (web + TUI)
 **Deliverable:** a live dashboard over a running instance, in the browser and in the

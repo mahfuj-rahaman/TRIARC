@@ -44,6 +44,7 @@ class ModelEndpoint(BaseModel):
     capabilities: list[Capability]
     cost: float
     privacy: Privacy
+    tier: int | None = None
 
 
 class ModelRegistry(BaseModel):

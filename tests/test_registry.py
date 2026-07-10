@@ -27,6 +27,9 @@ def test_loads_configs_models_yaml():
     assert local.endpoint == "http://localhost:8000/v1"
     assert local.privacy == Privacy.LOCAL
     assert Capability.ROUTE in local.capabilities
+    assert local.tier == 1
+    assert registry.get("gemma-coder").tier == 2
+    assert registry.get("frontier").tier == 3
 
 
 def test_missing_env_var_raises(monkeypatch):

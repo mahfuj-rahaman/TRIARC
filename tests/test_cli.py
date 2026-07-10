@@ -5,6 +5,7 @@ from click.testing import CliRunner
 from orchestrator.cli import cli
 from orchestrator.schema import Capability, Plan, Task
 from orchestrator.servers.code_sandbox.runtime import SandboxResult
+from orchestrator.worker_client import ExecutionResult
 
 
 class _FakeTier1Client:
@@ -53,7 +54,7 @@ def test_run_execute_runs_develop_loop_and_reports_outcomes(monkeypatch, tmp_pat
 
     class _StubWorker:
         def execute(self, task, feedback=None):
-            return task
+            return ExecutionResult(task=task, total_tokens=10)
 
     monkeypatch.setattr(
         "orchestrator.develop_loop.WorkerClient.from_endpoint", lambda endpoint: _StubWorker()
@@ -67,3 +68,5 @@ def test_run_execute_runs_develop_loop_and_reports_outcomes(monkeypatch, tmp_pat
 
     assert result.exit_code == 0, result.output
     assert '"passed": true' in result.output
+    assert "Cost summary" in result.output
+    assert "Savings" in result.output

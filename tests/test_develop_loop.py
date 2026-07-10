@@ -5,16 +5,20 @@ from orchestrator.planner import RoutedStep
 from orchestrator.registry import ModelEndpoint, ModelRegistry
 from orchestrator.schema import Capability, Constraints, Privacy, Task
 from orchestrator.servers.code_sandbox.runtime import SandboxResult
+from orchestrator.telemetry import RunLog
+from orchestrator.worker_client import ExecutionResult
 
 
 class _StubWorker:
-    def __init__(self, results: list[Task]) -> None:
+    def __init__(self, results: list[Task], tokens: int = 10) -> None:
         self._results = results
+        self._tokens = tokens
         self.calls: list[tuple[Task, str | None]] = []
 
-    def execute(self, task: Task, feedback: str | None = None) -> Task:
+    def execute(self, task: Task, feedback: str | None = None) -> ExecutionResult:
         self.calls.append((task, feedback))
-        return self._results[len(self.calls) - 1]
+        produced = self._results[len(self.calls) - 1]
+        return ExecutionResult(task=produced, total_tokens=self._tokens)
 
 
 class _StubSandbox:
@@ -219,3 +223,62 @@ def test_run_plan_stops_at_first_failing_step(tmp_path, monkeypatch):
 
     assert [o.passed for o in outcomes] == [True, False]
     assert len(sandbox.run_calls) == 4
+
+
+def test_run_step_logs_each_worker_call(tmp_path, monkeypatch):
+    task = _task()
+    first = task.model_copy(update={"result": "broken", "confidence": 0.9})
+    second = task.model_copy(update={"result": "fixed", "confidence": 0.9})
+    endpoint = _endpoint()
+    _install_stub_workers(monkeypatch, {"gemma-coder": _StubWorker([first, second], tokens=50)})
+    sandbox = _StubSandbox(
+        tmp_path,
+        [
+            SandboxResult(exit_code=1, stdout="", stderr="boom"),
+            SandboxResult(exit_code=0, stdout="1 passed", stderr=""),
+        ],
+    )
+    run_log = RunLog()
+
+    run_step(RoutedStep(task=task, endpoint=endpoint), ModelRegistry(models=[]), sandbox, run_log=run_log)
+
+    logs = run_log.steps
+    assert len(logs) == 2
+    assert [log.passed for log in logs] == [False, True]
+    assert all(log.endpoint_id == "gemma-coder" for log in logs)
+    assert all(log.tokens == 50 for log in logs)
+    assert all(log.cost == 0.2 for log in logs)
+    assert all(log.escalated is False for log in logs)
+
+
+def test_run_step_logs_escalated_calls(tmp_path, monkeypatch):
+    weak = _endpoint("weak", capabilities=[Capability.CODE_SIMPLE])
+    strong = _endpoint("strong", capabilities=[Capability.TOOL_USE])
+    registry = ModelRegistry(models=[weak, strong])
+
+    task = Task(
+        goal="do something uncertain",
+        capability_required=Capability.CODE_SIMPLE,
+        context_refs=["out.py"],
+        constraints=Constraints(privacy=Privacy.CLOUD_OK),
+    )
+    low_confidence = task.model_copy(update={"confidence": 0.2})
+    high_confidence = task.model_copy(
+        update={"capability_required": Capability.TOOL_USE, "confidence": 0.9, "result": "print(1)"}
+    )
+    _install_stub_workers(
+        monkeypatch, {"weak": _StubWorker([low_confidence]), "strong": _StubWorker([high_confidence])}
+    )
+    sandbox = _StubSandbox(tmp_path, [SandboxResult(exit_code=0, stdout="ok", stderr="")])
+    run_log = RunLog()
+
+    run_step(RoutedStep(task=task, endpoint=weak), registry, sandbox, run_log=run_log)
+
+    logs = run_log.steps
+    assert len(logs) == 2
+    assert logs[0].endpoint_id == "weak"
+    assert logs[0].escalated is False
+    assert logs[0].passed is None
+    assert logs[1].endpoint_id == "strong"
+    assert logs[1].escalated is True
+    assert logs[1].passed is True

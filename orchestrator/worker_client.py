@@ -17,12 +17,19 @@ from __future__ import annotations
 
 import json
 import os
+from dataclasses import dataclass
 
 from openai import OpenAI
 
 from orchestrator.registry import ModelEndpoint
 from orchestrator.schema import Privacy, Task
 from orchestrator.security.egress import EgressGatekeeper
+
+
+@dataclass
+class ExecutionResult:
+    task: Task
+    total_tokens: int
 
 _SYSTEM_PROMPT = (
     "You are a TRIARC worker executing exactly one sub-task of a larger plan. Produce "
@@ -62,7 +69,7 @@ class WorkerClient:
             return text
         return self._gatekeeper.check(text, privacy=task_privacy).redacted_text
 
-    def execute(self, task: Task, feedback: str | None = None) -> Task:
+    def execute(self, task: Task, feedback: str | None = None) -> ExecutionResult:
         messages = [
             {"role": "system", "content": _SYSTEM_PROMPT},
             {"role": "user", "content": self._outbound(task.goal, task.constraints.privacy)},
@@ -94,4 +101,7 @@ class WorkerClient:
         data["goal"] = task.goal
         data["capability_required"] = task.capability_required.value
         data["context_refs"] = task.context_refs
-        return Task.model_validate(data)
+        produced = Task.model_validate(data)
+
+        total_tokens = response.usage.total_tokens if response.usage else 0
+        return ExecutionResult(task=produced, total_tokens=total_tokens)

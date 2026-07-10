@@ -8,6 +8,7 @@ models:
     capabilities: [route, extract, code_simple]
     cost: 0
     privacy: local
+    tier: 1
 
   - id: gemma-coder
     endpoint: https://api.fireworks.ai/inference/v1
@@ -15,6 +16,7 @@ models:
     capabilities: [code_complex, tool_use]
     cost: 0.2
     privacy: cloud_ok
+    tier: 2
 
   - id: frontier
     endpoint: https://api.fireworks.ai/inference/v1
@@ -22,3 +24,4 @@ models:
     capabilities: [synthesis, debug, research]
     cost: 3.0
     privacy: cloud_ok
+    tier: 3

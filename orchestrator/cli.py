@@ -10,7 +10,9 @@ import click
 from orchestrator.develop_loop import run_plan
 from orchestrator.planner import route_plan
 from orchestrator.registry import ModelRegistry
+from orchestrator.report import print_run_report
 from orchestrator.servers.code_sandbox.runtime import ContainerRuntime
+from orchestrator.telemetry import RunLog
 from orchestrator.tier1_client import Tier1Client
 
 _DEFAULT_MODELS_CONFIG = "configs/models.yaml"
@@ -54,7 +56,8 @@ def run(goal: str, execute: bool) -> None:
 
     workspace = os.environ.get("TRIARC_WORKSPACE", _DEFAULT_WORKSPACE)
     sandbox = ContainerRuntime(workspace)
-    outcomes = run_plan(routed_steps, registry, sandbox)
+    run_log = RunLog()
+    outcomes = run_plan(routed_steps, registry, sandbox, run_log=run_log)
     click.echo(
         json.dumps(
             [
@@ -69,6 +72,10 @@ def run(goal: str, execute: bool) -> None:
             indent=2,
         )
     )
+
+    if run_log.steps:
+        largest_cost = max(endpoint.cost for endpoint in registry.models)
+        print_run_report(run_log, run_log.summary(largest_cost))
 
 
 if __name__ == "__main__":
