@@ -10,5 +10,13 @@
   {
     "task_id": "task-003",
     "goal": "Write a Python function that returns the nth Fibonacci number."
+  },
+  {
+    "task_id": "task-004",
+    "goal": "Summarize this in one sentence: 'The quarterly report showed a 12% increase in revenue driven primarily by international sales, though operating margins declined slightly due to rising logistics costs.'"
+  },
+  {
+    "task_id": "task-005",
+    "goal": "What is the capital of Japan?"
   }
 ]

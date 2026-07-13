@@ -2,12 +2,13 @@
 
 ![TRIARC routing diagram](docs/assets/routing-diagram.svg)
 
-**AMD Developer Hackathon: ACT II — Track 3 (Unicorn Track 🦄)**
+**AMD Developer Hackathon: ACT II — Track 1 (Hybrid Token-Efficient Routing Agent)**
 
 TRIARC is an autonomous AI developer that plans, writes, runs, and debugs code by
-routing every step to the *cheapest capable model* — free local inference first,
-Fireworks-hosted models only when the task actually demands it. A small orchestrator
-decides **who** does the work; large models are called on demand, never by default.
+routing every step to the *cheapest capable model* — the lowest-cost Fireworks-hosted
+model first, escalating to larger Fireworks models only when the task actually demands
+it. A small orchestrator decides **who** does the work; large models are called on
+demand, never by default.
 
 The name comes from the **tri-agent architecture** at its core: one orchestrator that
 routes, plus the reasoning tiers it escalates to — three roles, one arc from plan to
@@ -17,9 +18,15 @@ shipped code.
 > personal AI system built on three LoRA-specialized roles (Orchestrator, Agent,
 > Researcher). The fundamentals are identical — capability-based routing, an escalation
 > ladder, schema-enforced inter-agent messages, MCP tools, a three-faced security plane.
-> For the hackathon the custom local models are swapped for online LLMs served through
-> **Fireworks AI on AMD infrastructure**, so the full product could be built inside the
-> event window.
+> For the hackathon, all three tiers run against **Fireworks AI-hosted models** — the
+> original design targeted a local model on AMD GPU hardware for Tier 1, but the AMD
+> GPU credits we were expecting didn't come through in time, so Tier 1 also routes to a
+> low-cost Fireworks endpoint instead. The routing/escalation logic is identical either
+> way; only the Tier 1 endpoint differs from the original plan.
+>
+> **Development tooling disclosure.** TRIARC was built with the help of Claude
+> (Anthropic) as a coding/debugging assistant during development. Claude is not part of
+> TRIARC's runtime — at inference time, TRIARC only calls Fireworks AI-hosted models.
 
 ---
 
@@ -37,7 +44,8 @@ TRIARC's answer is to separate *orchestration* from *reasoning*:
 - For each sub-task it emits a required **capability** (never a model name).
 - A **registry** resolves that capability to the cheapest endpoint that satisfies it.
 - Every result carries a `confidence` score and an `escalation_reason` — the system
-  **fails upward instead of bluffing.**
+  **fails upward instead of bluffing**, retrying on a stronger endpoint rather than
+  defaulting every task to the most expensive tier out of caution.
 
 ---
 
@@ -46,11 +54,15 @@ TRIARC's answer is to separate *orchestration* from *reasoning*:
 The orchestrator emits `capability_required`; the registry resolves it to an endpoint.
 No component ever hardcodes a model name — swapping a model is a one-line config change.
 
+All three tiers are Fireworks AI-hosted models — Tier 1 was originally scoped for a
+local model on AMD GPU hardware, but ran on Fireworks instead due to AMD GPU credit
+availability during the event. See the lineage note above.
+
 | Tier | Endpoint | Handles | Cost |
 |---|---|---|---|
-| **Tier 1** | Local model on the AMD GPU pod | classification, extraction, simple edits, routing | free |
-| **Tier 2** | Fireworks mid (e.g. **Gemma**) | structured coding, test generation | low |
-| **Tier 3** | Fireworks large | deep reasoning, multi-file refactors, subtle debugging | high |
+| **Tier 1** | Fireworks-hosted low-cost model (e.g. GLM-5.2) | classification, extraction, simple edits, routing | free / lowest |
+| **Tier 2** | Fireworks mid (**Gemma**) | structured coding, test generation | low |
+| **Tier 3** | Fireworks large (frontier) | deep reasoning, multi-file refactors, subtle debugging | high |
 
 See [docs/architecture.md](docs/architecture.md) for the full design and
 [docs/routing.md](docs/routing.md) for the routing/escalation mechanics.
@@ -64,7 +76,7 @@ Goal in  ──▶  Orchestrator (small model, constrained JSON decode)
                  │  classify → decompose → emit capability_required per step
                  ▼
              Model Registry ── resolves capability → cheapest capable endpoint
-                 │   Tier 1: local (AMD GPU pod)   free: classify, extract, simple edits
+                 │   Tier 1: Fireworks low-cost     classify, extract, simple edits
                  │   Tier 2: Fireworks mid (Gemma)  structured coding, tests
                  │   Tier 3: Fireworks large        deep reasoning, refactor, hard debug
                  ▼
@@ -80,44 +92,68 @@ Goal in  ──▶  Orchestrator (small model, constrained JSON decode)
 
 ---
 
-## Quickstart
+## Evaluation / batch mode (this is what the grading harness runs)
 
-> Requires a `FIREWORKS_API_KEY` for Tier 2/3. Tier 1 runs against a local
-> OpenAI-compatible endpoint on the AMD GPU pod. TRIARC ships as a single container.
+The published image runs headless, one-shot: it reads a batch of tasks, routes and
+executes each one through the registry above, and writes results — no server, no
+manual interaction.
 
 ```bash
-# 1. clone + configure
-git clone https://github.com/<you>/triarc.git && cd triarc
-cp .env.example .env            # add FIREWORKS_API_KEY; set local endpoint URL
+docker pull ghcr.io/hoodk123/triarc:latest
 
-# 2. bring up the management API (containerized — the whole app, not just the sandbox)
-docker compose up --build       # serves the API at http://localhost:8080
-
-# 3a. give it a goal from the CLI, one-shot
-docker compose exec app triarc run "add JWT auth to this Flask app and write tests" --execute
-
-# 3b. ...or drive it from the management UI instead (see below)
+docker run --rm \
+  -v "$(pwd)/input:/input:ro" \
+  -v "$(pwd)/output:/output" \
+  -e FIREWORKS_API_KEY=<your-key> \
+  -e FIREWORKS_GEMMA_MODEL=<model-id> \
+  -e FIREWORKS_LARGE_MODEL=<model-id> \
+  -e LOCAL_ENDPOINT=<tier-1 endpoint> \
+  -e LOCAL_MODEL=<tier-1 model-id> \
+  ghcr.io/hoodk123/triarc:latest
 ```
 
-Backends: any OpenAI-compatible endpoint registered in `configs/models.yaml`
-(local model on AMD hardware for Tier 1; Fireworks AI for Tiers 2–3).
+`input/tasks.json` is a JSON array of `{"task_id": "...", "goal": "..."}` objects.
+The container writes `output/results.json` — one `{task_id, goal, result, confidence}`
+entry per task — and exits with code `0`. This is the `triarc run-task` command
+(`orchestrator/cli.py`), invoked automatically by the image's default `CMD`.
 
-### Management UI
-
-The container only serves the API (`orchestrator/api/`, architecture.md §8); the two
-UI clients run separately, against that same API:
+Build it yourself instead of pulling:
 
 ```bash
+git clone https://github.com/<you>/triarc.git && cd triarc
+cp .env.example .env            # add FIREWORKS_API_KEY and Tier 1 endpoint
+docker compose up --build --remove-orphans
+```
+
+---
+
+## Interactive / development mode
+
+For iterating on a real coding task with the full plan → execute → test → fix loop
+(sandboxed `pytest` runs, retries, escalation), use the CLI directly against a live
+workspace — this path expects an actual codebase mounted in and a test suite to run,
+so it's a development tool, not what the grading harness exercises:
+
+```bash
+uv run triarc run "add JWT auth to this Flask app and write tests" --execute
+```
+
+### Management UI (optional, local only)
+
+A separate `serve` mode exposes a management API for two thin dashboard clients — run
+monitoring, cost & routing telemetry, the model registry editor, and the
+confirmation-gate inbox. Neither the API nor the UI is used by automated evaluation.
+
+```bash
+uv run triarc serve --host 127.0.0.1 --port 8080
+
 # web dashboard
 cd ui/web && npm install && npm run dev       # http://localhost:5173
 
 # terminal dashboard
-pip install -e '.[tui]'
-TRIARC_API_URL=http://localhost:8080 python -m ui.tui.app
+uv pip install -e ".[tui]"
+uv run python -m ui.tui.app                    # from repo root
 ```
-
-Both are thin clients over one API — run monitoring/control, cost & routing
-telemetry, the model registry editor, and the confirmation-gate inbox.
 
 ---
 
@@ -142,6 +178,8 @@ triarc/
 │   ├── web/                    # React + TypeScript management dashboard
 │   └── tui/                    # Python Textual management dashboard
 ├── configs/                   # model registry, MCP servers, policies (YAML)
+├── input/                     # tasks.json for batch/evaluation runs
+├── output/                    # results.json written by batch runs
 ├── workspace/                  # the sandboxed project directory a run operates on
 ├── tests/                      # pytest suite for orchestrator/, orchestrator/api/, ui/tui/
 └── docker/                    # container definitions
@@ -178,7 +216,3 @@ routing intelligence is the moat, wrapped into a real autonomous-developer produ
 ## License
 
 MIT. See [LICENSE](LICENSE).
-
-> **Note:** Verify all hackathon prize amounts, track names, and submission requirements
-> against the official [lablab.ai event page](https://lablab.ai/ai-hackathons/amd-developer-hackathon-act-ii)
-> before submitting.

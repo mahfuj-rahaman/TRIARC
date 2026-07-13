@@ -8,13 +8,25 @@
   {
     "task_id": "task-002",
     "goal": "Classify the sentiment of this review as positive, negative, or neutral: 'The delivery was late but the product quality exceeded my expectations.'",
-    "result": "positive",
-    "confidence": 0.9
+    "result": "Positive",
+    "confidence": 0.85
   },
   {
     "task_id": "task-003",
     "goal": "Write a Python function that returns the nth Fibonacci number.",
-    "result": "def fibonacci(n):\n    if n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    if n <= 1:\n        return n\n    a, b = 0, 1\n    for _ in range(2, n + 1):\n        a, b = b, a + b\n    return b",
-    "confidence": 1.0
+    "result": "def fibonacci(n):\n    if n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    if n == 0:\n        return 0\n    if n == 1:\n        return 1\n    a, b = 0, 1\n    for _ in range(2, n + 1):\n        a, b = b, a + b\n    return b",
+    "confidence": 0.95
+  },
+  {
+    "task_id": "task-004",
+    "goal": "Summarize this in one sentence: 'The quarterly report showed a 12% increase in revenue driven primarily by international sales, though operating margins declined slightly due to rising logistics costs.'",
+    "result": "The quarterly report showed a 12% increase in revenue driven primarily by international sales, though operating margins declined slightly due to rising logistics costs.",
+    "confidence": 0.95
+  },
+  {
+    "task_id": "task-005",
+    "goal": "What is the capital of Japan?",
+    "result": null,
+    "confidence": 0.0
   }
 ]
